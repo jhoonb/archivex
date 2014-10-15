@@ -7,16 +7,15 @@ using standard library.
 Installation
 -------------
 
-::
-
-   $ go get github.com/jhoonb/archivex
+``` bash
+$ go get github.com/jhoonb/archivex
+``` 
 
 
 Example 
 -------------
 
-::
-
+``` 
 
 package main
 
@@ -65,5 +64,6 @@ func main() {
 	usingInterface()
 }
 
+```
 
 :)
