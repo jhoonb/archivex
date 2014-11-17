@@ -1,8 +1,7 @@
 archivex
 ========
 
-archivex is a golang package that implements facilities to create files zip and tar
-using standard library.
+archivex is a golang package that archives folders (recursively) and files to zip and tar formats.
 
 Installation
 -------------
