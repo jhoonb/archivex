@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"log"
 )
 
 // interface
@@ -33,6 +34,15 @@ type ZipFile struct {
 type TarFile struct {
 	Writer *tar.Writer
 	Name   string
+}
+
+func isDir(path string) bool {
+	src, err := os.Stat(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return src.IsDir()
 }
 
 // Create new file zip
@@ -95,16 +105,20 @@ func (z *ZipFile) AddAll(dir string) error {
 	var bdatas [][]byte
 
 	for _, arq := range listFile {
-		bytearq, err := ioutil.ReadFile(dir + arq.Name())
-		if err != nil {
-			return err
+		if isDir(dir + arq.Name()) {
+			z.AddAll(dir + arq.Name() + "/")
+		} else {
+			bytearq, err := ioutil.ReadFile(dir + arq.Name())
+			if err != nil {
+				return err
+			}
+			names = append(names, arq.Name())
+			bdatas = append(bdatas, bytearq)
 		}
-		names = append(names, arq.Name())
-		bdatas = append(bdatas, bytearq)
 	}
 
 	for i, file := range bdatas {
-		filep, err := z.Writer.Create(names[i])
+		filep, err := z.Writer.Create(dir + names[i])
 		if err != nil {
 			return err
 		}
@@ -184,16 +198,20 @@ func (t *TarFile) AddAll(dir string) error {
 	var bdatas [][]byte
 
 	for _, arq := range listFile {
-		bytearq, err := ioutil.ReadFile(dir + arq.Name())
-		if err != nil {
-			return err
+		if isDir(dir + arq.Name()) {
+			t.AddAll(dir + arq.Name() + "/")
+		} else {
+			bytearq, err := ioutil.ReadFile(dir + arq.Name())
+			if err != nil {
+				return err
+			}
+			names = append(names, arq.Name())
+			bdatas = append(bdatas, bytearq)
 		}
-		names = append(names, arq.Name())
-		bdatas = append(bdatas, bytearq)
 	}
 
 	for i, file := range bdatas {
-		hdr := &tar.Header{Name: names[i], Size: int64(len(file))}
+		hdr := &tar.Header{Name: dir + names[i], Size: int64(len(file))}
 		if err := t.Writer.WriteHeader(hdr); err != nil {
 			return err
 		}
