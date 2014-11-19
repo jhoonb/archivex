@@ -20,7 +20,7 @@ func Test_archivex(t *testing.T) {
 		err := arc.Create("filetest")
 		checkError(t, err)
 		// create 50000 files
-		err = arc.AddAll("testfolder/")
+		err = arc.AddAll("testfolder/", true)
 		checkError(t, err)
 		arc.Close()
 		checkError(t, err)
