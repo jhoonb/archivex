@@ -28,7 +28,7 @@ func zip() {
 	zip.Create("filezip")
 	zip.Add("testadd.txt", []byte("test 1"))
 	zip.AddFile("<input_path_file_here>")
-	zip.AddAll("<input_dir_here")
+	zip.AddAll("<input_dir_here", true)
 	zip.Close()
 }
 
@@ -38,7 +38,7 @@ func tar() {
 	tar.Create("filetar")
 	tar.Add("testadd.txt", []byte("test 1"))
 	tar.AddFile("<input_path_file_here>")
-	tar.AddAll("<input_dir_here")
+	tar.AddAll("<input_dir_here", true)
 	tar.Close()
 }
 
@@ -51,7 +51,7 @@ func usingInterface() {
 		arch.Create("fileinterface")
 		arch.Add("testadd.txt", []byte("file 1 :) "))
 		arch.AddFile("<input_path_file_here>")
-		arch.AddAll("<input_dir_here")
+		arch.AddAll("<input_dir_here", true)
 		arch.Close()
 	}
 }
