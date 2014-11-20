@@ -7,7 +7,6 @@
 package archivex
 
 import (
-	"strconv"
 	"testing"
 )
 
@@ -20,14 +19,8 @@ func Test_archivex(t *testing.T) {
 		// create file
 		err := arc.Create("filetest")
 		checkError(t, err)
-		var file string
 		// create 50000 files
-		for i := 0; i < 50000; i++ {
-			file = "testfile" + strconv.Itoa(i) + ".txt"
-			err = arc.Add(file, []byte("test file byte jhoonb.com :) "))
-			checkError(t, err)
-		}
-		err = arc.AddAll("testfolder/")
+		err = arc.AddAll("testfolder/", true)
 		checkError(t, err)
 		arc.Close()
 		checkError(t, err)
