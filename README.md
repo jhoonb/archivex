@@ -14,7 +14,7 @@ $ go get github.com/jhoonb/archivex
 Example 
 -------------
 
-``` 
+```go 
 
 package main
 
