@@ -8,6 +8,7 @@ package archivex
 
 import (
 	"testing"
+	"os"
 )
 
 func Test_archivex(t *testing.T) {
@@ -20,7 +21,13 @@ func Test_archivex(t *testing.T) {
 		err := arc.Create("filetest")
 		checkError(t, err)
 		// create 50000 files
-		err = arc.AddAll("testfolder/", true)
+		dir, _ := os.Getwd()
+		// absolute path
+		err = arc.AddAll(dir+"/testfolder/", true)
+		err = arc.AddAll(dir+"/testfolder/", false)
+		// relative path
+        	err = arc.AddAll("testfolder/", true)
+        	err = arc.AddAll("testfolder/", false)
 		checkError(t, err)
 		arc.Close()
 		checkError(t, err)
