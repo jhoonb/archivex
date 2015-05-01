@@ -239,16 +239,12 @@ func (t *TarFile) Close() error {
 }
 
 func getSubDir(dir string, rootDir string, includeCurrentFolder bool) string {
-	l := len(rootDir)
-	lastSep := strings.LastIndex(rootDir[0:len(rootDir)-1], string(os.PathSeparator))
-	if lastSep == -1 {
-		lastSep = 0
-	}
-	subDir := dir[lastSep:len(dir)]
-
-	if ! includeCurrentFolder {
-		subDir = dir[l: len(dir)]
-	}
-
-	return subDir
+	subDir := strings.Replace(dir, rootDir, "", 1)
+            
+    	if includeCurrentFolder {
+        	rootDirParts := strings.Split(rootDir, string(os.PathSeparator))
+        	subDir = rootDirParts[len(rootDirParts)-2] + string(os.PathSeparator) + subDir
+    	}
+            
+    	return subDir
 }
