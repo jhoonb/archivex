@@ -7,8 +7,8 @@
 package archivex
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
 func Test_archivex(t *testing.T) {
@@ -18,26 +18,27 @@ func Test_archivex(t *testing.T) {
 
 	for _, arc := range arcvx {
 		// create file
-		err := arc.Create("filetest")
-		checkError(t, err)
+		if err := arc.Create("filetest"); err != nil {
+			t.Fatalf("Error creating 'filetest': %v", err)
+		}
 		// create 50000 files
 		dir, _ := os.Getwd()
 		// absolute path
-		err = arc.AddAll(dir+"/testfolder/", true)
-		err = arc.AddAll(dir+"/testfolder/", false)
-		// relative path
-        	err = arc.AddAll("testfolder/", true)
-        	err = arc.AddAll("testfolder/", false)
-		checkError(t, err)
+		if err := arc.AddAll(dir+"/testfolder/", true); err != nil {
+			t.Fatalf("Error doing AddAll with '/testfolder/' and includeCurrentFolder = true: %v", err)
+		}
+		/*
+			if err := arc.AddAll(dir+"/testfolder/", false); err != nil {
+				t.Fatalf("Error doing AllAll with '/testfolder/' and includeCurrentFolder = false: %v", err)
+			}
+			// relative path
+			if err := arc.AddAll("testfolder/", true); err != nil {
+				t.Fatalf("Error doing AddAll with 'testfolder/' and includeCurrentFolder = true: %v", err)
+			}
+			if err := arc.AddAll("testfolder/", false); err != nil {
+				t.Fatalf("Error doing AddAll with 'testfolder/' and includeCurrentFolder = false: %v", err)
+			}
+		*/
 		arc.Close()
-		checkError(t, err)
-	}
-}
-
-// func for check errors
-func checkError(t *testing.T, err error) {
-	if err != nil {
-		t.Error(err)
-		t.Fail()
 	}
 }
