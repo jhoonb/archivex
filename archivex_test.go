@@ -59,6 +59,8 @@ func Test_archivex(t *testing.T) {
 
 		for i, test := range typeTest.tests {
 
+			t.Logf("Running %s...", test.name)
+
 			// Create the archive
 			filename := fmt.Sprintf("%d_%s_test", i+1, test.name)
 			arch := reflect.ValueOf(typeTest.arch).Interface().(Archivex)
@@ -76,5 +78,4 @@ func Test_archivex(t *testing.T) {
 
 		}
 	}
-
 }
