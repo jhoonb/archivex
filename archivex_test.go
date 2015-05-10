@@ -7,37 +7,75 @@
 package archivex
 
 import (
-	"testing"
+	"fmt"
+	// "log"
 	"os"
+	"path"
+	"reflect"
+	"testing"
 )
+
+type archTest struct {
+	addPath string
+	include bool
+	name    string
+}
+
+type archTypeTest struct {
+	tests []archTest
+	arch  Archivex
+}
 
 func Test_archivex(t *testing.T) {
 
-	// interface
-	arcvx := []Archivex{&ZipFile{}, &TarFile{}}
+	dir, _ := os.Getwd()
 
-	for _, arc := range arcvx {
-		// create file
-		err := arc.Create("filetest")
-		checkError(t, err)
-		// create 50000 files
-		dir, _ := os.Getwd()
+	// All the different tests we want to run with different combinations of input paths and the includeCurrentFolder flag
+	tests := []archTest{
 		// absolute path
-		err = arc.AddAll(dir+"/testfolder/", true)
-		err = arc.AddAll(dir+"/testfolder/", false)
+		archTest{dir + "/testfolder/", true, "absTrailInclude"},
+		archTest{dir + "/testfolder/", false, "absTrailExclude"},
 		// relative path
-        	err = arc.AddAll("testfolder/", true)
-        	err = arc.AddAll("testfolder/", false)
-		checkError(t, err)
-		arc.Close()
-		checkError(t, err)
+		archTest{"testfolder/", true, "relTrailInclude"},
+		archTest{"testfolder/", false, "relTrailExclude"},
+		// without trailing slashes
+		archTest{dir + "/testfolder", true, "absInclude"},
+		archTest{dir + "/testfolder", false, "absExclude"},
+		archTest{"testfolder", true, "relInclude"},
+		archTest{"testfolder", false, "relExclude"},
 	}
-}
 
-// func for check errors
-func checkError(t *testing.T, err error) {
-	if err != nil {
-		t.Error(err)
-		t.Fail()
+	// We want to execute the batch of tests on both Zip and Tar
+	typeTests := []archTypeTest{
+		archTypeTest{tests, &ZipFile{}},
+		archTypeTest{tests, &TarFile{}},
+	}
+
+	// Run all tests
+	for _, typeTest := range typeTests {
+
+		currentType := reflect.TypeOf(typeTest.arch)
+		t.Logf("Running tests for archive type: %s", currentType.Elem())
+
+		for i, test := range typeTest.tests {
+
+			t.Logf("Running %s...", test.name)
+
+			// Create the archive
+			filename := fmt.Sprintf("%d_%s_test", i+1, test.name)
+			arch := reflect.ValueOf(typeTest.arch).Interface().(Archivex)
+			if err := arch.Create(path.Join("testresults", filename)); err != nil {
+				t.Fatalf("Error creating '%s': %v", filename, err)
+			}
+
+			// Add the files to the archive
+			if err := arch.AddAll(test.addPath, test.include); err != nil {
+				t.Fatalf("Error doing AddAll with '%s' and includeCurrentFolder = %v: %v", test.addPath, test.include, err)
+			}
+
+			// Close the archive
+			arch.Close()
+
+		}
 	}
 }
