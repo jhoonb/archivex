@@ -173,8 +173,17 @@ func (t *TarFile) AddFile(name string) error {
 		return err
 	}
 
-	hdr := &tar.Header{Name: name, Size: int64(len(bytearq))}
-	err = t.Writer.WriteHeader(hdr)
+	info, err := os.Stat(name)
+	if err != nil {
+		return err
+	}
+
+	header, err := tar.FileInfoHeader(info, "")
+	if err != nil {
+		return err
+	}
+
+	err = t.Writer.WriteHeader(header)
 	if err != nil {
 		return err
 	}
