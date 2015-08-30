@@ -158,7 +158,7 @@ func (t *TarFile) Create(name string) error {
 // Add add byte in archive tar
 func (t *TarFile) Add(name string, file []byte) error {
 
-	hdr := &tar.Header{Name: name, Size: int64(len(file))}
+	hdr := &tar.Header{Name: name, Size: int64(len(file)), Mode: 0777}
 	if err := t.Writer.WriteHeader(hdr); err != nil {
 		return err
 	}
