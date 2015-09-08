@@ -155,6 +155,7 @@ func (t *TarFile) Create(name string) error {
 		// is it .zip? replace it
 		if strings.HasSuffix(name, ".zip") == true {
 			name = strings.Replace(name, ".zip", ".tar.gz", -1)
+			t.Compressed = true
 		} else {
 			// if it's not, add .tar
 			// since we'll assume it's not compressed
