@@ -9,6 +9,7 @@ package archivex
 import (
 	"archive/tar"
 	"archive/zip"
+	"compress/gzip"
 	"io"
 	"io/ioutil"
 	// "log"
@@ -38,8 +39,10 @@ type ZipFile struct {
 
 // TarFile implement *tar.Writer
 type TarFile struct {
-	Writer *tar.Writer
-	Name   string
+	Writer     *tar.Writer
+	Name       string
+	GzWriter   *gzip.Writer
+	Compressed bool
 }
 
 // Create new file zip
@@ -138,20 +141,41 @@ func (z *ZipFile) Close() error {
 
 // Create new Tar file
 func (t *TarFile) Create(name string) error {
-	// check extension .zip
-	if strings.HasSuffix(name, ".tar.gz") != true {
+	// check the filename extension
+
+	// if it has a .gz, we'll compress it.
+	if strings.HasSuffix(name, ".tar.gz") {
+		t.Compressed = true
+	} else {
+		t.Compressed = false
+	}
+
+	// check to see if they have the wrong extension
+	if strings.HasSuffix(name, ".tar.gz") != true && strings.HasSuffix(name, ".tar") != true {
+		// is it .zip? replace it
 		if strings.HasSuffix(name, ".zip") == true {
 			name = strings.Replace(name, ".zip", ".tar.gz", -1)
+			t.Compressed = true
 		} else {
-			name = name + ".tar.gz"
+			// if it's not, add .tar
+			// since we'll assume it's not compressed
+			name = name + ".tar"
 		}
 	}
+
 	t.Name = name
 	file, err := os.Create(t.Name)
 	if err != nil {
 		return err
 	}
-	t.Writer = tar.NewWriter(file)
+
+	if t.Compressed {
+		t.GzWriter = gzip.NewWriter(file)
+		t.Writer = tar.NewWriter(t.GzWriter)
+	} else {
+		t.Writer = tar.NewWriter(file)
+	}
+
 	return nil
 }
 
@@ -231,7 +255,18 @@ func (t *TarFile) AddAll(dir string, includeCurrentFolder bool) error {
 
 // Close the file Tar
 func (t *TarFile) Close() error {
+	if t.Compressed {
+		err := t.GzWriter.Close()
+		if err != nil {
+			return err
+		}
+	}
+
 	err := t.Writer.Close()
+	if err != nil {
+		return err
+	}
+
 	return err
 }
 
