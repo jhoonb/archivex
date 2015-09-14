@@ -12,10 +12,13 @@ import (
 	"compress/gzip"
 	"io"
 	"io/ioutil"
-	// "log"
 	"os"
 	"path"
 	"strings"
+	"bufio"
+	"fmt"
+	"path/filepath"
+	"errors"
 )
 
 // interface
@@ -23,6 +26,7 @@ type Archivex interface {
 	Create(name string) error
 	Add(name string, file []byte) error
 	AddFile(name string) error
+	AddFileInBlock(name string, blockSize int64) error
 	AddAll(dir string, includeCurrentFolder bool) error
 	Close() error
 }
@@ -66,12 +70,13 @@ func (z *ZipFile) Create(name string) error {
 
 // Add add byte in archive zip
 func (z *ZipFile) Add(name string, file []byte) error {
-
 	iow, err := z.Writer.Create(name)
 	if err != nil {
 		return err
 	}
+
 	_, err = iow.Write(file)
+
 	return err
 }
 
@@ -89,6 +94,56 @@ func (z *ZipFile) AddFile(name string) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+// AddFile add file from dir in archive
+func (z *ZipFile) AddFileInBlock(name string, blockSize int64) error {
+	zippedFile, err := z.Writer.Create(name)
+	if err != nil {
+		return err
+	}
+
+	filePath := fmt.Sprintf(filepath.Join(name))
+	file, _ := os.Open(filePath)
+	fileStats, _ := file.Stat()
+	fileSize := fileStats.Size()
+	fileReader := bufio.NewReader(file)
+
+	readedBytes := 0
+
+	var bytes []byte
+
+	for {
+		rest := fileSize - int64(readedBytes)
+
+		if rest == 0 {
+			break
+		}
+
+		if rest < blockSize {
+			bytes = make([]byte, rest)
+		} else {
+			bytes = make([]byte, blockSize)
+		}
+
+		readedBytes += len(bytes)
+
+		_, err = fileReader.Read(bytes)
+
+		if err != nil {
+			if err.Error() == "EOF" {
+				break
+			}
+
+			if err.Error() != "EOF" {
+				return err
+			}
+		}
+
+		zippedFile.Write(bytes)
+	}
+
 	return nil
 }
 
@@ -217,6 +272,11 @@ func (t *TarFile) AddFile(name string) error {
 	}
 	return nil
 
+}
+
+// AddFile add file from dir in archive
+func (z *TarFile) AddFileInBlock(name string, blockSize int64) error {
+	return errors.New("Func not implemented.")
 }
 
 // AddAll adds all files from dir in archive
