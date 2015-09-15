@@ -16,9 +16,7 @@ import (
 	"path"
 	"strings"
 	"bufio"
-	"fmt"
 	"path/filepath"
-	"errors"
 )
 
 // interface
@@ -26,7 +24,6 @@ type Archivex interface {
 	Create(name string) error
 	Add(name string, file []byte) error
 	AddFile(name string) error
-	AddFileInBlock(name string, blockSize int64) error
 	AddAll(dir string, includeCurrentFolder bool) error
 	Close() error
 }
@@ -82,54 +79,19 @@ func (z *ZipFile) Add(name string, file []byte) error {
 
 // AddFile add file from dir in archive
 func (z *ZipFile) AddFile(name string) error {
-	bytearq, err := ioutil.ReadFile(name)
-	if err != nil {
-		return err
-	}
-	filep, err := z.Writer.Create(name)
-	if err != nil {
-		return err
-	}
-	_, err = filep.Write(bytearq)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// AddFile add file from dir in archive
-func (z *ZipFile) AddFileInBlock(name string, blockSize int64) error {
 	zippedFile, err := z.Writer.Create(name)
 	if err != nil {
 		return err
 	}
 
-	filePath := fmt.Sprintf(filepath.Join(name))
-	file, _ := os.Open(filePath)
-	fileStats, _ := file.Stat()
-	fileSize := fileStats.Size()
+	file, _ := os.Open(filepath.Join(name))
 	fileReader := bufio.NewReader(file)
 
-	readedBytes := 0
-
-	var bytes []byte
+	blockSize := 512 * 1024 // 512kb
+	bytes := make([]byte, blockSize)
 
 	for {
-		rest := fileSize - int64(readedBytes)
-
-		if rest == 0 {
-			break
-		}
-
-		if rest < blockSize {
-			bytes = make([]byte, rest)
-		} else {
-			bytes = make([]byte, blockSize)
-		}
-
-		readedBytes += len(bytes)
-
-		_, err = fileReader.Read(bytes)
+		readedBytes, err := fileReader.Read(bytes)
 
 		if err != nil {
 			if err.Error() == "EOF" {
@@ -141,7 +103,12 @@ func (z *ZipFile) AddFileInBlock(name string, blockSize int64) error {
 			}
 		}
 
-		zippedFile.Write(bytes)
+		if readedBytes >= blockSize {
+			zippedFile.Write(bytes)
+			continue
+		}
+
+		zippedFile.Write(bytes[:readedBytes])
 	}
 
 	return nil
@@ -272,11 +239,6 @@ func (t *TarFile) AddFile(name string) error {
 	}
 	return nil
 
-}
-
-// AddFile add file from dir in archive
-func (z *TarFile) AddFileInBlock(name string, blockSize int64) error {
-	return errors.New("Func not implemented.")
 }
 
 // AddAll adds all files from dir in archive
