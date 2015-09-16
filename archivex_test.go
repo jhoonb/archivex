@@ -60,7 +60,7 @@ func Test_archivex(t *testing.T) {
 	// We want to execute the batch of tests on both Zip and Tar
 	typeTests := []archTypeTest{
 		archTypeTest{tests, &ZipFile{}},
-//		archTypeTest{tests, &TarFile{}},
+		archTypeTest{tests, &TarFile{}},
 	}
 
 	// Run all tests

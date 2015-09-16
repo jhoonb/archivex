@@ -9,14 +9,14 @@ package archivex
 import (
 	"archive/tar"
 	"archive/zip"
+	"bufio"
 	"compress/gzip"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
-	"bufio"
 	"path/filepath"
+	"strings"
 )
 
 // interface
