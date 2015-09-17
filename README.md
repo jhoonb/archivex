@@ -3,6 +3,9 @@ archivex
 
 archivex is a golang package that archives folders (recursively) and files to zip and tar formats.
 
+[![Build Status](https://travis-ci.org/jhoonb/archivex.svg)](https://travis-ci.org/jhoonb/archivex) 
+[![](http://gocover.io/_badge/github.com/jhoonb/archivex)](http://gocover.io/github.com/jhoonb/archivex)
+
 Installation
 -------------
 
