@@ -8,8 +8,6 @@ package archivex
 
 import (
 	"fmt"
-
-	// "log"
 	"os"
 	"path"
 	"reflect"
@@ -31,7 +29,6 @@ type archTypeTest struct {
 }
 
 func Test_archivex(t *testing.T) {
-
 	dir, _ := os.Getwd()
 
 	// let's clean up the previous results, to be sure that we're not reading from an old result.
@@ -48,9 +45,11 @@ func Test_archivex(t *testing.T) {
 		// absolute path
 		archTest{dir + "/testfolder/", true, "absTrailInclude", dir + "/LICENSE", "string", "filename"},
 		archTest{dir + "/testfolder/", false, "absTrailExclude", dir + "/LICENSE", "string", "filename"},
+
 		// relative path
 		archTest{"testfolder/", true, "relTrailInclude", "LICENSE", "string", "filename"},
 		archTest{"testfolder/", false, "relTrailExclude", "LICENSE", "string", "filename"},
+
 		// without trailing slashes
 		archTest{dir + "/testfolder", true, "absInclude", dir + "/LICENSE", "string", "filename"},
 		archTest{dir + "/testfolder", false, "absExclude", dir + "/LICENSE", "string", "filename"},
@@ -66,12 +65,10 @@ func Test_archivex(t *testing.T) {
 
 	// Run all tests
 	for _, typeTest := range typeTests {
-
 		currentType := reflect.TypeOf(typeTest.arch)
 		t.Logf("Running tests for archive type: %s", currentType.Elem())
 
 		for i, test := range typeTest.tests {
-
 			t.Logf("Running %s...", test.name)
 
 			// Create the archive
@@ -99,7 +96,6 @@ func Test_archivex(t *testing.T) {
 
 			// Close the archive
 			arch.Close()
-
 		}
 	}
 }
