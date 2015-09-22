@@ -296,16 +296,16 @@ func (t *TarFile) AddAll(dir string, includeCurrentFolder bool) error {
 
 // Close the file Tar
 func (t *TarFile) Close() error {
-	if t.Compressed {
-		err := t.GzWriter.Close()
-		if err != nil {
-			return err
-		}
-	}
-
 	err := t.Writer.Close()
 	if err != nil {
 		return err
+	}
+
+	if t.Compressed {
+		err = t.GzWriter.Close()
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
