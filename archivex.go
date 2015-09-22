@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"fmt"
 )
 
 // interface
@@ -211,6 +212,18 @@ func (t *TarFile) Add(name string, file []byte) error {
 		Mode:    0666,
 		ModTime: time.Now(),
 	}
+	if err := t.Writer.WriteHeader(hdr); err != nil {
+		return err
+	}
+	_, err := t.Writer.Write(file)
+	return err
+}
+
+// Add add byte in archive tar
+func (t *TarFile) AddWithHeader(name string, file []byte, hdr *tar.Header) error {
+
+	fmt.Println(hdr)
+
 	if err := t.Writer.WriteHeader(hdr); err != nil {
 		return err
 	}
