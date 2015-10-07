@@ -11,6 +11,7 @@ import (
 	"archive/zip"
 	"bufio"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -18,7 +19,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"fmt"
 )
 
 // interface
