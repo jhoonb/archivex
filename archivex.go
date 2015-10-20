@@ -243,10 +243,14 @@ func (t *TarFile) AddFile(name string) error {
 		return err
 	}
 
+	fmt.Println(info)
+
 	header, err := tar.FileInfoHeader(info, "")
 	if err != nil {
 		return err
 	}
+
+	fmt.Println(header.Name)
 
 	err = t.Writer.WriteHeader(header)
 	if err != nil {
@@ -257,7 +261,35 @@ func (t *TarFile) AddFile(name string) error {
 		return err
 	}
 	return nil
+}
 
+// AddFile add file from dir in archive tar
+func (t *TarFile) AddFileWithName(name string, filename string) error {
+	bytearq, err := ioutil.ReadFile(name)
+	if err != nil {
+		return err
+	}
+
+	info, err := os.Stat(name)
+	if err != nil {
+		return err
+	}
+
+	header, err := tar.FileInfoHeader(info, "")
+	if err != nil {
+		return err
+	}
+	header.Name = filename
+
+	err = t.Writer.WriteHeader(header)
+	if err != nil {
+		return err
+	}
+	_, err = t.Writer.Write(bytearq)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // AddAll adds all files from dir in archive
