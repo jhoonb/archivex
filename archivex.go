@@ -11,12 +11,14 @@ import (
 	"archive/zip"
 	"bufio"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // interface
@@ -204,7 +206,24 @@ func (t *TarFile) Create(name string) error {
 // Add add byte in archive tar
 func (t *TarFile) Add(name string, file []byte) error {
 
-	hdr := &tar.Header{Name: name, Size: int64(len(file)), Mode: 0666}
+	hdr := &tar.Header{
+		Name:    name,
+		Size:    int64(len(file)),
+		Mode:    0666,
+		ModTime: time.Now(),
+	}
+	if err := t.Writer.WriteHeader(hdr); err != nil {
+		return err
+	}
+	_, err := t.Writer.Write(file)
+	return err
+}
+
+// Add add byte in archive tar
+func (t *TarFile) AddWithHeader(name string, file []byte, hdr *tar.Header) error {
+
+	fmt.Println(hdr)
+
 	if err := t.Writer.WriteHeader(hdr); err != nil {
 		return err
 	}
@@ -224,10 +243,14 @@ func (t *TarFile) AddFile(name string) error {
 		return err
 	}
 
+	fmt.Println(info)
+
 	header, err := tar.FileInfoHeader(info, "")
 	if err != nil {
 		return err
 	}
+
+	fmt.Println(header.Name)
 
 	err = t.Writer.WriteHeader(header)
 	if err != nil {
@@ -238,7 +261,35 @@ func (t *TarFile) AddFile(name string) error {
 		return err
 	}
 	return nil
+}
 
+// AddFile add file from dir in archive tar
+func (t *TarFile) AddFileWithName(name string, filename string) error {
+	bytearq, err := ioutil.ReadFile(name)
+	if err != nil {
+		return err
+	}
+
+	info, err := os.Stat(name)
+	if err != nil {
+		return err
+	}
+
+	header, err := tar.FileInfoHeader(info, "")
+	if err != nil {
+		return err
+	}
+	header.Name = filename
+
+	err = t.Writer.WriteHeader(header)
+	if err != nil {
+		return err
+	}
+	_, err = t.Writer.Write(bytearq)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // AddAll adds all files from dir in archive
@@ -277,16 +328,16 @@ func (t *TarFile) AddAll(dir string, includeCurrentFolder bool) error {
 
 // Close the file Tar
 func (t *TarFile) Close() error {
-	if t.Compressed {
-		err := t.GzWriter.Close()
-		if err != nil {
-			return err
-		}
-	}
-
 	err := t.Writer.Close()
 	if err != nil {
 		return err
+	}
+
+	if t.Compressed {
+		err = t.GzWriter.Close()
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
