@@ -11,7 +11,6 @@ import (
 	"archive/zip"
 	"bufio"
 	"compress/gzip"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -222,7 +221,6 @@ func (t *TarFile) Add(name string, file []byte) error {
 // Add add byte in archive tar
 func (t *TarFile) AddWithHeader(name string, file []byte, hdr *tar.Header) error {
 
-	fmt.Println(hdr)
 
 	if err := t.Writer.WriteHeader(hdr); err != nil {
 		return err
@@ -243,14 +241,12 @@ func (t *TarFile) AddFile(name string) error {
 		return err
 	}
 
-	fmt.Println(info)
 
 	header, err := tar.FileInfoHeader(info, "")
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(header.Name)
 
 	err = t.Writer.WriteHeader(header)
 	if err != nil {
