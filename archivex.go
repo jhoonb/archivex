@@ -62,6 +62,11 @@ func (z *ZipFile) Create(name string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			return err
+		}
+	}()
 	z.Writer = zip.NewWriter(file)
 	return nil
 }
@@ -86,6 +91,11 @@ func (z *ZipFile) AddFile(name string) error {
 	}
 
 	file, _ := os.Open(filepath.Join(name))
+	defer func() {
+		if err := file.Close(); err != nil {
+			return err
+		}
+	}()
 	fileReader := bufio.NewReader(file)
 
 	blockSize := 512 * 1024 // 512kb
@@ -191,6 +201,11 @@ func (t *TarFile) Create(name string) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			return err
+		}
+	}()
 
 	if t.Compressed {
 		t.GzWriter = gzip.NewWriter(file)
@@ -372,6 +387,11 @@ func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc Ar
 			if err != nil {
 				return err
 			}
+			defer func() {
+				if err := file.Close(); err != nil {
+					return err
+				}
+			}()
 		}
 
 		// Write the entry into the archive
