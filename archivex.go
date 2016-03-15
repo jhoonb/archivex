@@ -221,7 +221,6 @@ func (t *TarFile) Add(name string, file []byte) error {
 // Add add byte in archive tar
 func (t *TarFile) AddWithHeader(name string, file []byte, hdr *tar.Header) error {
 
-
 	if err := t.Writer.WriteHeader(hdr); err != nil {
 		return err
 	}
@@ -241,12 +240,10 @@ func (t *TarFile) AddFile(name string) error {
 		return err
 	}
 
-
 	header, err := tar.FileInfoHeader(info, "")
 	if err != nil {
 		return err
 	}
-
 
 	err = t.Writer.WriteHeader(header)
 	if err != nil {
@@ -366,19 +363,31 @@ func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc Ar
 		full := path.Join(dir, info.Name())
 
 		// If the entry is a file, get an io.Reader for it
-		var file io.Reader
+		var file *os.File
+		var reader io.Reader
 		if !info.IsDir() {
 			file, err = os.Open(full)
 			if err != nil {
 				return err
 			}
+			reader = file
 		}
 
 		// Write the entry into the archive
 		subDir := getSubDir(dir, rootDir, includeCurrentFolder)
 		entryName := path.Join(subDir, info.Name())
-		if err := writerFunc(info, file, entryName); err != nil {
+		if err := writerFunc(info, reader, entryName); err != nil {
+			if file != nil {
+				file.Close()
+			}
 			return err
+		}
+
+		if file != nil {
+			if err := file.Close(); err != nil {
+				return err
+			}
+
 		}
 
 		// If the entry is a directory, recurse into it
