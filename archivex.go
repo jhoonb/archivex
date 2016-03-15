@@ -342,6 +342,10 @@ func (t *TarFile) Close() error {
 func getSubDir(dir string, rootDir string, includeCurrentFolder bool) (subDir string) {
 
 	subDir = strings.Replace(dir, rootDir, "", 1)
+	// Remove leading slashes, since this is intentionally a subdirectory.
+	if len(subDir) > 0 && subDir[0] == os.PathSeparator {
+		subDir = subDir[1:]
+	}
 
 	if includeCurrentFolder {
 		parts := strings.Split(rootDir, string(os.PathSeparator))
