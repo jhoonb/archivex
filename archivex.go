@@ -364,17 +364,19 @@ func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc Ar
 
 		// If the entry is a file, get an io.Reader for it
 		var file *os.File
+		var reader io.Reader
 		if !info.IsDir() {
 			file, err = os.Open(full)
 			if err != nil {
 				return err
 			}
+			reader = file
 		}
 
 		// Write the entry into the archive
 		subDir := getSubDir(dir, rootDir, includeCurrentFolder)
 		entryName := path.Join(subDir, info.Name())
-		if err := writerFunc(info, io.Reader(file), entryName); err != nil {
+		if err := writerFunc(info, reader, entryName); err != nil {
 			if file != nil {
 				file.Close()
 			}
