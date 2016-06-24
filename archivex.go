@@ -137,7 +137,7 @@ func (z *ZipFile) AddAll(dir string, includeCurrentFolder bool) error {
 
 		// Add a trailing slash if the entry is a directory
 		if info.IsDir() {
-			header.Name += string(os.PathSeparator)
+			header.Name += "/"
 		}
 
 		// Get a writer in the archive based on our header
@@ -343,6 +343,7 @@ func getSubDir(dir string, rootDir string, includeCurrentFolder bool) (subDir st
 	if len(subDir) > 0 && subDir[0] == os.PathSeparator {
 		subDir = subDir[1:]
 	}
+	subDir = path.Join(strings.Split(subDir, string(os.PathSeparator))...)
 
 	if includeCurrentFolder {
 		parts := strings.Split(rootDir, string(os.PathSeparator))
@@ -364,7 +365,7 @@ func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc Ar
 	// Loop through all entries
 	for _, info := range fileInfos {
 
-		full := path.Join(dir, info.Name())
+		full := filepath.Join(dir, info.Name())
 
 		// If the entry is a file, get an io.Reader for it
 		var file *os.File
