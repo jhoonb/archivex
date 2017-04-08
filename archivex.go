@@ -37,6 +37,7 @@ type ArchiveWriteFunc func(info os.FileInfo, file io.Reader, entryName string) (
 type ZipFile struct {
 	Writer *zip.Writer
 	Name   string
+	file   *os.File
 }
 
 // TarFile implement *tar.Writer
@@ -45,6 +46,16 @@ type TarFile struct {
 	Name       string
 	GzWriter   *gzip.Writer
 	Compressed bool
+}
+
+func (z *ZipFile) createWriter(name string) (io.Writer, error) {
+	header := &zip.FileHeader{
+		Name:   name,
+		Flags:  1 << 11, // use utf8 encoding the file Name
+		Method: zip.Deflate,
+	}
+
+	return z.Writer.CreateHeader(header)
 }
 
 // Create new file zip
@@ -63,12 +74,13 @@ func (z *ZipFile) Create(name string) error {
 		return err
 	}
 	z.Writer = zip.NewWriter(file)
+	z.file = file
 	return nil
 }
 
 // Add add byte in archive zip
 func (z *ZipFile) Add(name string, file []byte) error {
-	iow, err := z.Writer.Create(name)
+	iow, err := z.createWriter(name)
 	if err != nil {
 		return err
 	}
@@ -80,12 +92,53 @@ func (z *ZipFile) Add(name string, file []byte) error {
 
 // AddFile add file from dir in archive
 func (z *ZipFile) AddFile(name string) error {
-	zippedFile, err := z.Writer.Create(name)
+	zippedFile, err := z.createWriter(name)
 	if err != nil {
 		return err
 	}
 
 	file, _ := os.Open(filepath.Join(name))
+	fileReader := bufio.NewReader(file)
+
+	blockSize := 512 * 1024 // 512kb
+	bytes := make([]byte, blockSize)
+
+	for {
+		readedBytes, err := fileReader.Read(bytes)
+
+		if err != nil {
+			if err.Error() == "EOF" {
+				break
+			}
+
+			if err.Error() != "EOF" {
+				return err
+			}
+		}
+
+		if readedBytes >= blockSize {
+			zippedFile.Write(bytes)
+			continue
+		}
+
+		zippedFile.Write(bytes[:readedBytes])
+	}
+
+	return nil
+}
+
+//AddFileWithName add a file to zip with a name
+func (z *ZipFile) AddFileWithName(name string, filepath string) error {
+	zippedFile, err := z.createWriter(name)
+	if err != nil {
+		return err
+	}
+
+	file, e := os.Open(filepath)
+	defer file.Close()
+	if e != nil {
+		return e
+	}
 	fileReader := bufio.NewReader(file)
 
 	blockSize := 512 * 1024 // 512kb
@@ -157,8 +210,10 @@ func (z *ZipFile) AddAll(dir string, includeCurrentFolder bool) error {
 	})
 }
 
+//Close close the zip file
 func (z *ZipFile) Close() error {
 	err := z.Writer.Close()
+	z.file.Close()
 	return err
 }
 
