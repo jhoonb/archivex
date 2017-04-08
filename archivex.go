@@ -291,11 +291,6 @@ func (t *TarFile) AddAll(dir string, includeCurrentFolder bool) error {
 	dir = path.Clean(dir)
 	return addAll(dir, dir, includeCurrentFolder, func(info os.FileInfo, file io.Reader, entryName string) (err error) {
 
-		// Skip directory entries
-		if file == nil {
-			return nil
-		}
-
 		// Create a header based off of the fileinfo
 		header, err := tar.FileInfoHeader(info, "")
 		if err != nil {
@@ -308,6 +303,11 @@ func (t *TarFile) AddAll(dir string, includeCurrentFolder bool) error {
 		// Write the header into the tar file
 		if err := t.Writer.WriteHeader(header); err != nil {
 			return err
+		}
+
+		// The directory don't need copy file
+		if file == nil {
+			return nil
 		}
 
 		// Pipe the file into the tar
