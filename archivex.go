@@ -23,6 +23,7 @@ import (
 // interface
 type Archivex interface {
 	Create(name string) error
+	CreateWriter(name string, w io.Writer) error
 	Add(name string, file []byte) error
 	AddFile(name string) error
 	AddAll(dir string, includeCurrentFolder bool) error
@@ -37,7 +38,6 @@ type ArchiveWriteFunc func(info os.FileInfo, file io.Reader, entryName string) (
 type ZipFile struct {
 	Writer *zip.Writer
 	Name   string
-	file   *os.File
 }
 
 // TarFile implement *tar.Writer
@@ -74,7 +74,13 @@ func (z *ZipFile) Create(name string) error {
 		return err
 	}
 	z.Writer = zip.NewWriter(file)
-	z.file = file
+	return nil
+}
+
+// Create a new Tar and write it to a given writer
+func (z *ZipFile) CreateWriter(name string, w io.Writer) error {
+	z.Writer = zip.NewWriter(w)
+	z.Name = name
 	return nil
 }
 
@@ -210,15 +216,18 @@ func (z *ZipFile) AddAll(dir string, includeCurrentFolder bool) error {
 	})
 }
 
-//Close close the zip file
-func (z *ZipFile) Close() error {
-	err := z.Writer.Close()
-	z.file.Close()
-	return err
-}
-
 // Create new Tar file
 func (t *TarFile) Create(name string) error {
+	file, err := os.Create(t.Name)
+	if err != nil {
+		return err
+	}
+
+	return t.CreateWriter(name, file)
+}
+
+// Create a new Tar and write it to a given writer
+func (t *TarFile) CreateWriter(name string, w io.Writer) error {
 	// check the filename extension
 
 	// if it has a .gz, we'll compress it.
@@ -242,16 +251,12 @@ func (t *TarFile) Create(name string) error {
 	}
 
 	t.Name = name
-	file, err := os.Create(t.Name)
-	if err != nil {
-		return err
-	}
 
 	if t.Compressed {
-		t.GzWriter = gzip.NewWriter(file)
+		t.GzWriter = gzip.NewWriter(w)
 		t.Writer = tar.NewWriter(t.GzWriter)
 	} else {
-		t.Writer = tar.NewWriter(file)
+		t.Writer = tar.NewWriter(w)
 	}
 
 	return nil
