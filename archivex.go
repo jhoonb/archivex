@@ -39,6 +39,7 @@ type ArchiveWriteFunc func(info os.FileInfo, file io.Reader, entryName string) (
 type ZipFile struct {
 	Writer *zip.Writer
 	Name   string
+	out    io.Writer
 }
 
 // TarFile implement *tar.Writer
@@ -47,6 +48,7 @@ type TarFile struct {
 	Name       string
 	GzWriter   *gzip.Writer
 	Compressed bool
+	out        io.Writer
 }
 
 func (z *ZipFile) createWriter(name string) (io.Writer, error) {
@@ -217,6 +219,16 @@ func (z *ZipFile) AddAll(dir string, includeCurrentFolder bool) error {
 	})
 }
 
+//Close close the zip file
+func (z *ZipFile) Close() error {
+	err := z.Writer.Close()
+	// If the out writer supports io.Closer, Close it.
+	if c, ok := z.out.(io.Closer); ok {
+		c.Close()
+	}
+	return err
+}
+
 // Create new Tar file
 func (t *TarFile) Create(name string) error {
 	file, err := os.Create(t.Name)
@@ -259,7 +271,7 @@ func (t *TarFile) CreateWriter(name string, w io.Writer) error {
 	} else {
 		t.Writer = tar.NewWriter(w)
 	}
-
+	t.out = w
 	return nil
 }
 
@@ -392,6 +404,11 @@ func (t *TarFile) Close() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	// If the out writer supports io.Closer, Close it.
+	if c, ok := t.out.(io.Closer); ok {
+		c.Close()
 	}
 
 	return err
