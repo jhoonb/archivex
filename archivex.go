@@ -26,6 +26,7 @@ type Archivex interface {
 	CreateWriter(name string, w io.Writer) error
 	Add(name string, file []byte) error
 	AddFile(name string) error
+	AddFileWithName(name string, filename string) error
 	AddAll(dir string, includeCurrentFolder bool) error
 	Close() error
 }
