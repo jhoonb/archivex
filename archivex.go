@@ -229,31 +229,16 @@ func (z *ZipFile) Close() error {
 	return err
 }
 
-// Create new Tar file
-func (t *TarFile) Create(name string) error {
-	file, err := os.Create(t.Name)
-	if err != nil {
-		return err
-	}
-
-	return t.CreateWriter(name, file)
-}
-
-// Create a new Tar and write it to a given writer
-func (t *TarFile) CreateWriter(name string, w io.Writer) error {
+func (t *TarFile) configureName(name string) {
 	// check the filename extension
 
 	// if it has a .gz, we'll compress it.
-	if strings.HasSuffix(name, ".tar.gz") {
-		t.Compressed = true
-	} else {
-		t.Compressed = false
-	}
+	t.Compressed = strings.HasSuffix(name, ".tar.gz")
 
 	// check to see if they have the wrong extension
-	if strings.HasSuffix(name, ".tar.gz") != true && strings.HasSuffix(name, ".tar") != true {
+	if !strings.HasSuffix(name, ".tar.gz") && !strings.HasSuffix(name, ".tar") {
 		// is it .zip? replace it
-		if strings.HasSuffix(name, ".zip") == true {
+		if strings.HasSuffix(name, ".zip") {
 			name = strings.Replace(name, ".zip", ".tar.gz", -1)
 			t.Compressed = true
 		} else {
@@ -264,6 +249,30 @@ func (t *TarFile) CreateWriter(name string, w io.Writer) error {
 	}
 
 	t.Name = name
+}
+
+// Create new Tar file
+func (t *TarFile) Create(name string) error {
+	t.configureName(name)
+
+	file, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+
+	if t.Compressed {
+		t.GzWriter = gzip.NewWriter(file)
+		t.Writer = tar.NewWriter(t.GzWriter)
+	} else {
+		t.Writer = tar.NewWriter(file)
+	}
+	t.out = file
+	return nil
+}
+
+// Create a new Tar and write it to a given writer
+func (t *TarFile) CreateWriter(name string, w io.Writer) error {
+	t.configureName(name)
 
 	if t.Compressed {
 		t.GzWriter = gzip.NewWriter(w)
