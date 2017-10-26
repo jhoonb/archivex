@@ -23,6 +23,7 @@ _testmain.go
 *.test
 *.prof
 
+.idea
 .DS_Store
 filetest.*
 testresults
