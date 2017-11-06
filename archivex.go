@@ -49,11 +49,22 @@ type TarFile struct {
 }
 
 func (z *ZipFile) createWriter(name string) (io.Writer, error) {
-	header := &zip.FileHeader{
-		Name:   name,
-		Flags:  1 << 11, // use utf8 encoding the file Name
-		Method: zip.Deflate,
+	file, _ := os.Open(filepath.Join(name))
+
+	// Get the file information
+	info, err := file.Stat()
+	if err != nil {
+		return nil, err
 	}
+
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return nil, err
+	}
+
+	header.Name = name
+	header.Method = zip.Deflate
+	header.Flags = 1 << 11
 
 	return z.Writer.CreateHeader(header)
 }
@@ -80,12 +91,17 @@ func (z *ZipFile) Create(name string) error {
 
 // Add add byte in archive zip
 func (z *ZipFile) Add(name string, file []byte) error {
-	iow, err := z.createWriter(name)
+	_, err := os.Create(filepath.Join(name))
 	if err != nil {
 		return err
 	}
 
-	_, err = iow.Write(file)
+	zippedFile, err := z.createWriter(name)
+	if err != nil {
+		return err
+	}
+
+	_, err = zippedFile.Write(file)
 
 	return err
 }
@@ -259,17 +275,19 @@ func (t *TarFile) Create(name string) error {
 
 // Add add byte in archive tar
 func (t *TarFile) Add(name string, file []byte) error {
-
 	hdr := &tar.Header{
 		Name:    name,
 		Size:    int64(len(file)),
 		Mode:    0666,
 		ModTime: time.Now(),
 	}
+
 	if err := t.Writer.WriteHeader(hdr); err != nil {
 		return err
 	}
+
 	_, err := t.Writer.Write(file)
+
 	return err
 }
 
