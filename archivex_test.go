@@ -43,24 +43,24 @@ func Test_archivex(t *testing.T) {
 	// All the different tests we want to run with different combinations of input paths and the includeCurrentFolder flag
 	tests := []archTest{
 		// absolute path
-		archTest{dir + "/testfolder/", true, "absTrailInclude", dir + "/LICENSE", "string", "filename"},
-		archTest{dir + "/testfolder/", false, "absTrailExclude", dir + "/LICENSE", "string", "filename"},
+		{dir + "/testfolder/", true, "absTrailInclude", dir + "/LICENSE", "string", "filename"},
+		{dir + "/testfolder/", false, "absTrailExclude", dir + "/LICENSE", "string", "filename"},
 
 		// relative path
-		archTest{"testfolder/", true, "relTrailInclude", "LICENSE", "string", "filename"},
-		archTest{"testfolder/", false, "relTrailExclude", "LICENSE", "string", "filename"},
+		{"testfolder/", true, "relTrailInclude", "LICENSE", "string", "filename"},
+		{"testfolder/", false, "relTrailExclude", "LICENSE", "string", "filename"},
 
 		// without trailing slashes
-		archTest{dir + "/testfolder", true, "absInclude", dir + "/LICENSE", "string", "filename"},
-		archTest{dir + "/testfolder", false, "absExclude", dir + "/LICENSE", "string", "filename"},
-		archTest{"testfolder", true, "relInclude", "LICENSE", "string", "filename"},
-		archTest{"testfolder", false, "relExclude", "LICENSE", "string", "filename"},
+		{dir + "/testfolder", true, "absInclude", dir + "/LICENSE", "string", "filename"},
+		{dir + "/testfolder", false, "absExclude", dir + "/LICENSE", "string", "filename"},
+		{"testfolder", true, "relInclude", "LICENSE", "string", "filename"},
+		{"testfolder", false, "relExclude", "LICENSE", "string", "filename"},
 	}
 
 	// We want to execute the batch of tests on both Zip and Tar
 	typeTests := []archTypeTest{
-		archTypeTest{tests, &ZipFile{}},
-		archTypeTest{tests, &TarFile{}},
+		{tests, &ZipFile{}},
+		{tests, &TarFile{}},
 	}
 
 	// Run all tests
@@ -87,7 +87,6 @@ func Test_archivex(t *testing.T) {
 			if err := arch.AddFile(test.filePath); err != nil {
 				t.Fatalf("Error doing AddFile with '%s': %v", test.filePath, err)
 			}
-			//}
 
 			// Add a file to the archive
 			if err := arch.Add(test.addFileName, []byte(test.addString)); err != nil {
