@@ -9,8 +9,9 @@ package archivex
 import (
 	"archive/tar"
 	"archive/zip"
-	"bufio"
+	"bytes"
 	"compress/gzip"
+	"errors"
 	"io"
 	"io/ioutil"
 	"os"
@@ -24,9 +25,7 @@ import (
 type Archivex interface {
 	Create(name string) error
 	CreateWriter(name string, w io.Writer) error
-	Add(name string, file []byte) error
-	AddFile(name string) error
-	AddFileWithName(name string, filename string) error
+	Add(name string, file io.Reader, info os.FileInfo) error
 	AddAll(dir string, includeCurrentFolder bool) error
 	Close() error
 }
@@ -51,16 +50,6 @@ type TarFile struct {
 	out        io.Writer
 }
 
-func (z *ZipFile) createWriter(name string) (io.Writer, error) {
-	header := &zip.FileHeader{
-		Name:   name,
-		Flags:  1 << 11, // use utf8 encoding the file Name
-		Method: zip.Deflate,
-	}
-
-	return z.Writer.CreateHeader(header)
-}
-
 // Create new file zip
 func (z *ZipFile) Create(name string) error {
 	// check extension .zip
@@ -80,101 +69,62 @@ func (z *ZipFile) Create(name string) error {
 	return nil
 }
 
-// Create a new Tar and write it to a given writer
+// Create a new ZIP and write it to a given writer
 func (z *ZipFile) CreateWriter(name string, w io.Writer) error {
 	z.Writer = zip.NewWriter(w)
 	z.Name = name
 	return nil
 }
 
-// Add add byte in archive zip
-func (z *ZipFile) Add(name string, file []byte) error {
-	iow, err := z.createWriter(name)
+// Add file reader in archive zip
+func (z *ZipFile) Add(name string, file io.Reader, info os.FileInfo) error {
+	var header *zip.FileHeader
+	if info == nil {
+		header = &zip.FileHeader{
+			Name:   name,
+			Flags:  1 << 11, // use utf8 encoding the file Name
+			Method: zip.Deflate,
+		}
+	} else {
+		var err error
+		header, err = zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+	}
+	zipWriter, err := z.Writer.CreateHeader(header)
 	if err != nil {
 		return err
 	}
 
-	_, err = iow.Write(file)
-
+	_, err = io.Copy(zipWriter, file)
 	return err
 }
 
 // AddFile add file from dir in archive
-func (z *ZipFile) AddFile(name string) error {
-	zippedFile, err := z.createWriter(name)
+func (z *ZipFile) AddFile(filepath string) error {
+	file, err := os.Open(filepath)
 	if err != nil {
 		return err
 	}
 
-	file, _ := os.Open(filepath.Join(name))
-	fileReader := bufio.NewReader(file)
-
-	blockSize := 512 * 1024 // 512kb
-	bytes := make([]byte, blockSize)
-
-	for {
-		readedBytes, err := fileReader.Read(bytes)
-
-		if err != nil {
-			if err.Error() == "EOF" {
-				break
-			}
-
-			if err.Error() != "EOF" {
-				return err
-			}
-		}
-
-		if readedBytes >= blockSize {
-			zippedFile.Write(bytes)
-			continue
-		}
-
-		zippedFile.Write(bytes[:readedBytes])
-	}
-
-	return nil
-}
-
-//AddFileWithName add a file to zip with a name
-func (z *ZipFile) AddFileWithName(name string, filepath string) error {
-	zippedFile, err := z.createWriter(name)
+	info, err := file.Stat()
 	if err != nil {
 		return err
 	}
 
-	file, e := os.Open(filepath)
-	defer file.Close()
-	if e != nil {
-		return e
-	}
-	fileReader := bufio.NewReader(file)
-
-	blockSize := 512 * 1024 // 512kb
-	bytes := make([]byte, blockSize)
-
-	for {
-		readedBytes, err := fileReader.Read(bytes)
-
-		if err != nil {
-			if err.Error() == "EOF" {
-				break
-			}
-
-			if err.Error() != "EOF" {
-				return err
-			}
-		}
-
-		if readedBytes >= blockSize {
-			zippedFile.Write(bytes)
-			continue
-		}
-
-		zippedFile.Write(bytes[:readedBytes])
+	header, err := zip.FileInfoHeader(info)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	zipWriter, err := z.Writer.CreateHeader(header)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(zipWriter, file)
+	return err
 }
 
 // AddAll adds all files from dir in archive, recursively.
@@ -182,7 +132,6 @@ func (z *ZipFile) AddFileWithName(name string, filepath string) error {
 func (z *ZipFile) AddAll(dir string, includeCurrentFolder bool) error {
 	dir = path.Clean(dir)
 	return addAll(dir, dir, includeCurrentFolder, func(info os.FileInfo, file io.Reader, entryName string) (err error) {
-
 		// Create a header based off of the fileinfo
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
@@ -285,86 +234,46 @@ func (t *TarFile) CreateWriter(name string, w io.Writer) error {
 }
 
 // Add add byte in archive tar
-func (t *TarFile) Add(name string, file []byte) error {
-
-	hdr := &tar.Header{
-		Name:    name,
-		Size:    int64(len(file)),
-		Mode:    0666,
-		ModTime: time.Now(),
-	}
-	if err := t.Writer.WriteHeader(hdr); err != nil {
+func (t *TarFile) Add(name string, file io.Reader, info os.FileInfo) error {
+	var header *tar.Header
+	if info == nil {
+		// Unfortunately, we need to know the size for the tar header, making it necessary to read the full file into memory
+		buf := bytes.Buffer{}
+		n, err := buf.ReadFrom(file)
+		if err != nil {
+			return err
+		}
+		header = &tar.Header{
+			Name:    name,
+			Size:    n,
+			Mode:    0666,
+			ModTime: time.Now(),
+		}
+		err = t.Writer.WriteHeader(header)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(t.Writer, bytes.NewReader(buf.Bytes()))
 		return err
 	}
-	_, err := t.Writer.Write(file)
-	return err
-}
 
-// Add add byte in archive tar
-func (t *TarFile) AddWithHeader(name string, file []byte, hdr *tar.Header) error {
-
-	if err := t.Writer.WriteHeader(hdr); err != nil {
-		return err
-	}
-	_, err := t.Writer.Write(file)
-	return err
-}
-
-// AddFile add file from dir in archive tar
-func (t *TarFile) AddFile(name string) error {
-	bytearq, err := ioutil.ReadFile(name)
+	var err error
+	header, err = tar.FileInfoHeader(info, name)
 	if err != nil {
 		return err
 	}
-
-	info, err := os.Stat(name)
-	if err != nil {
-		return err
-	}
-
-	header, err := tar.FileInfoHeader(info, "")
-	if err != nil {
-		return err
-	}
-
 	err = t.Writer.WriteHeader(header)
 	if err != nil {
 		return err
 	}
-	_, err = t.Writer.Write(bytearq)
+	n, err := io.Copy(t.Writer, file)
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-// AddFile add file from dir in archive tar
-func (t *TarFile) AddFileWithName(name string, filename string) error {
-	bytearq, err := ioutil.ReadFile(name)
-	if err != nil {
-		return err
+	if n != info.Size() {
+		return errors.New("unexpected amount of bytes copied")
 	}
-
-	info, err := os.Stat(name)
-	if err != nil {
-		return err
-	}
-
-	header, err := tar.FileInfoHeader(info, "")
-	if err != nil {
-		return err
-	}
-	header.Name = filename
-
-	err = t.Writer.WriteHeader(header)
-	if err != nil {
-		return err
-	}
-	_, err = t.Writer.Write(bytearq)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 // AddAll adds all files from dir in archive
@@ -372,7 +281,6 @@ func (t *TarFile) AddFileWithName(name string, filename string) error {
 func (t *TarFile) AddAll(dir string, includeCurrentFolder bool) error {
 	dir = path.Clean(dir)
 	return addAll(dir, dir, includeCurrentFolder, func(info os.FileInfo, file io.Reader, entryName string) (err error) {
-
 		// Create a header based off of the fileinfo
 		header, err := tar.FileInfoHeader(info, "")
 		if err != nil {
@@ -419,12 +327,10 @@ func (t *TarFile) Close() error {
 	if c, ok := t.out.(io.Closer); ok {
 		c.Close()
 	}
-
 	return err
 }
 
 func getSubDir(dir string, rootDir string, includeCurrentFolder bool) (subDir string) {
-
 	subDir = strings.Replace(dir, rootDir, "", 1)
 	// Remove leading slashes, since this is intentionally a subdirectory.
 	if len(subDir) > 0 && subDir[0] == os.PathSeparator {
@@ -436,13 +342,11 @@ func getSubDir(dir string, rootDir string, includeCurrentFolder bool) (subDir st
 		parts := strings.Split(rootDir, string(os.PathSeparator))
 		subDir = path.Join(parts[len(parts)-1], subDir)
 	}
-
 	return
 }
 
 // addAll is used to recursively go down through directories and add each file and directory to an archive, based on an ArchiveWriteFunc given to it
-func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc ArchiveWriteFunc) error {
-
+func addAll(dir, rootDir string, includeCurrentFolder bool, writerFunc ArchiveWriteFunc) error {
 	// Get a list of all entries in the directory, as []os.FileInfo
 	fileInfos, err := ioutil.ReadDir(dir)
 	if err != nil {
@@ -451,7 +355,6 @@ func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc Ar
 
 	// Loop through all entries
 	for _, info := range fileInfos {
-
 		full := filepath.Join(dir, info.Name())
 
 		// If the entry is a file, get an io.Reader for it
@@ -479,7 +382,6 @@ func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc Ar
 			if err := file.Close(); err != nil {
 				return err
 			}
-
 		}
 
 		// If the entry is a directory, recurse into it
@@ -487,6 +389,5 @@ func addAll(dir string, rootDir string, includeCurrentFolder bool, writerFunc Ar
 			addAll(full, rootDir, includeCurrentFolder, writerFunc)
 		}
 	}
-
 	return nil
 }
