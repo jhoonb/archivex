@@ -101,32 +101,6 @@ func (z *ZipFile) Add(name string, file io.Reader, info os.FileInfo) error {
 	return err
 }
 
-// AddFile add file from dir in archive
-func (z *ZipFile) AddFile(filepath string) error {
-	file, err := os.Open(filepath)
-	if err != nil {
-		return err
-	}
-
-	info, err := file.Stat()
-	if err != nil {
-		return err
-	}
-
-	header, err := zip.FileInfoHeader(info)
-	if err != nil {
-		return err
-	}
-
-	zipWriter, err := z.Writer.CreateHeader(header)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(zipWriter, file)
-	return err
-}
-
 // AddAll adds all files from dir in archive, recursively.
 // Directories receive a zero-size entry in the archive, with a trailing slash in the header name, and no compression
 func (z *ZipFile) AddAll(dir string, includeCurrentFolder bool) error {
@@ -238,6 +212,7 @@ func (t *TarFile) Add(name string, file io.Reader, info os.FileInfo) error {
 	var header *tar.Header
 	if info == nil {
 		// Unfortunately, we need to know the size for the tar header, making it necessary to read the full file into memory
+		// TODO: FIXME: We could check if the io.Reader supports io.Seek, so we can do a size scan, and then seek to the beginning for the read
 		buf := bytes.Buffer{}
 		n, err := buf.ReadFrom(file)
 		if err != nil {
