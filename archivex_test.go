@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -84,13 +85,21 @@ func Test_archivex(t *testing.T) {
 			}
 
 			// Add a file to the archive
-			if err := arch.AddFile(test.filePath); err != nil {
+			file, err := os.Open(test.filePath)
+			if err != nil {
+				t.Fatalf("Error opening file '%s': %v", test.filePath, err)
+			}
+			info, err := file.Stat()
+			if err != nil {
+				t.Fatalf("Error statting file '%s': %v", test.filePath, err)
+			}
+			if err := arch.Add(test.filePath, file, info); err != nil {
 				t.Fatalf("Error doing AddFile with '%s': %v", test.filePath, err)
 			}
 			//}
 
 			// Add a file to the archive
-			if err := arch.Add(test.addFileName, []byte(test.addString)); err != nil {
+			if err := arch.Add(test.addFileName, strings.NewReader(test.addString), nil); err != nil {
 				t.Fatalf("Error doing Add with '%s', '%s': %v", test.addString, test.addFileName, err)
 			}
 
