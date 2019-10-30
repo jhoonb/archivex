@@ -32,7 +32,7 @@ type Archivex interface {
 
 // ArchiveWriteFunc is the closure used by an archive's AddAll method to actually put a file into an archive
 // Note that for directory entries, this func will be called with a nil 'file' param
-type ArchiveWriteFunc func(info os.FileInfo, file io.Reader, entryName string) (err error)
+type ArchiveWriteFunc func(info os.FileInfo, file io.Reader, entryName string, fullPath string) (err error)
 
 // ZipFile implement *zip.Writer
 type ZipFile struct {
@@ -105,7 +105,7 @@ func (z *ZipFile) Add(name string, file io.Reader, info os.FileInfo) error {
 // Directories receive a zero-size entry in the archive, with a trailing slash in the header name, and no compression
 func (z *ZipFile) AddAll(dir string, includeCurrentFolder bool) error {
 	dir = path.Clean(dir)
-	return addAll(dir, dir, includeCurrentFolder, func(info os.FileInfo, file io.Reader, entryName string) (err error) {
+	return addAll(dir, dir, includeCurrentFolder, func(info os.FileInfo, file io.Reader, entryName string, fullPath string) (err error) {
 		// Create a header based off of the fileinfo
 		header, err := zip.FileInfoHeader(info)
 		if err != nil {
@@ -255,9 +255,18 @@ func (t *TarFile) Add(name string, file io.Reader, info os.FileInfo) error {
 // Tar does not support directories
 func (t *TarFile) AddAll(dir string, includeCurrentFolder bool) error {
 	dir = path.Clean(dir)
-	return addAll(dir, dir, includeCurrentFolder, func(info os.FileInfo, file io.Reader, entryName string) (err error) {
+
+	return addAll(dir, dir, includeCurrentFolder, func(info os.FileInfo, file io.Reader, entryName string, fullPath string) (err error) {
 		// Create a header based off of the fileinfo
-		header, err := tar.FileInfoHeader(info, "")
+		link := ""
+		if info.Mode()&os.ModeSymlink != 0 {
+			link, err = os.Readlink(fullPath)
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		header, err := tar.FileInfoHeader(info, link)
 		if err != nil {
 			return err
 		}
@@ -275,9 +284,14 @@ func (t *TarFile) AddAll(dir string, includeCurrentFolder bool) error {
 			return nil
 		}
 
-		// Pipe the file into the tar
-		if _, err := io.Copy(t.Writer, file); err != nil {
-			return err
+		switch header.Typeflag {
+		case tar.TypeLink, tar.TypeSymlink, tar.TypeChar, tar.TypeBlock, tar.TypeDir, tar.TypeFifo:
+			// header only files
+		default:
+			// Pipe the file into the tar
+			if _, err := io.Copy(t.Writer, file); err != nil {
+				return err
+			}
 		}
 
 		return nil
@@ -346,7 +360,8 @@ func addAll(dir, rootDir string, includeCurrentFolder bool, writerFunc ArchiveWr
 		// Write the entry into the archive
 		subDir := getSubDir(dir, rootDir, includeCurrentFolder)
 		entryName := path.Join(subDir, info.Name())
-		if err := writerFunc(info, reader, entryName); err != nil {
+		fullPath := path.Join(dir, info.Name())
+		if err := writerFunc(info, reader, entryName, fullPath); err != nil {
 			if file != nil {
 				file.Close()
 			}
@@ -361,7 +376,9 @@ func addAll(dir, rootDir string, includeCurrentFolder bool, writerFunc ArchiveWr
 
 		// If the entry is a directory, recurse into it
 		if info.IsDir() {
-			addAll(full, rootDir, includeCurrentFolder, writerFunc)
+			if err := addAll(full, rootDir, includeCurrentFolder, writerFunc); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
